@@ -124,7 +124,7 @@ with st.sidebar:
 
 # ── Jira data loader ──────────────────────────────────────────────────────────
 @st.cache_data(ttl=300, show_spinner="Fetching issues from Jira…")
-def load_jira_data(url, email, token, project, cache_bust=0):
+def load_jira_data(url, email, token, project):
     auth    = (email, token)
     headers = {"Accept": "application/json"}
     fields  = "summary,status,priority,assignee,reporter,issuetype,created"
@@ -193,12 +193,12 @@ def load_jira_data(url, email, token, project, cache_bust=0):
 if not JIRA_TOKEN:
     st.info("Enter your Jira API Token in the sidebar and click **Connect**."); st.stop()
 
-if connect_btn:
-    st.session_state["cache_bust"] = st.session_state.get("cache_bust", 0) + 1
+# Clear cache BEFORE calling load — triggered by Connect or Refresh on previous run
+if connect_btn or st.session_state.pop("do_refresh", False):
+    load_jira_data.clear()
 
 try:
-    raw = load_jira_data(JIRA_URL, JIRA_EMAIL, JIRA_TOKEN, JIRA_PROJECT,
-                         cache_bust=st.session_state.get("cache_bust", 0))
+    raw = load_jira_data(JIRA_URL, JIRA_EMAIL, JIRA_TOKEN, JIRA_PROJECT)
 except Exception as e:
     st.error(f"Jira Error: {e}"); st.stop()
 
@@ -222,7 +222,7 @@ else:
     dr = None
 st.sidebar.markdown("---")
 if st.sidebar.button("🔄 Refresh"):
-    st.session_state["cache_bust"] = st.session_state.get("cache_bust", 0) + 1
+    st.session_state["do_refresh"] = True
     st.rerun()
 
 df = raw.copy()
