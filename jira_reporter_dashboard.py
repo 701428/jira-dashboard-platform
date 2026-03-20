@@ -186,6 +186,7 @@ def load_jira_data(url, email, token, project, cache_bust=0):
     df["created_dt"]   = pd.to_datetime(df["created"], errors="coerce", utc=True)
     df["created_dt"]   = df["created_dt"].dt.tz_convert("Asia/Kolkata").dt.tz_localize(None)
     df["month_period"] = df["created_dt"].dt.to_period("M")
+    df.attrs["fetched_at"] = datetime.now().strftime("%d %b %Y, %H:%M:%S")
     return df
 
 # ── Load ──────────────────────────────────────────────────────────────────────
@@ -264,7 +265,7 @@ st.markdown(f"""
   <div class="banner-sub">
     {total_all:,} issues · {n_rep} reporters ·
     Project: <b>{JIRA_PROJECT.upper()}</b> ·
-    Refreshed {datetime.now().strftime('%d %b %Y, %H:%M')}
+    Data fetched: {raw.attrs.get('fetched_at', 'unknown')}
   </div>
   <div style="margin-top:12px;">
     <span class="bstat">🐛 {int(df['issue_type'].eq('Bug').sum())} Bugs</span>
