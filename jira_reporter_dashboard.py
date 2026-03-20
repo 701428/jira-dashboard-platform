@@ -111,13 +111,15 @@ def initials(n):
     return (p[0][0]+(p[-1][0] if len(p)>1 else "")).upper()
 
 # ── Jira config (sidebar) ─────────────────────────────────────────────────────
-_s = st.secrets.get("jira", {})
+_raw_secrets = st.secrets.get("jira", {})
+_s = dict(_raw_secrets) if _raw_secrets else {}
 with st.sidebar:
     st.markdown("## ⚙️ Jira Connection")
     JIRA_URL     = st.text_input("Jira URL",    value=_s.get("url",     "https://grampower.atlassian.net"), key="jurl")
     JIRA_EMAIL   = st.text_input("Email",       value=_s.get("email",   "lalit.tak@polarisgrids.com"),      key="jemail")
     JIRA_TOKEN   = st.text_input("API Token",   value=_s.get("token",   ""),                                type="password", key="jtoken")
     JIRA_PROJECT = st.text_input("Project Key", value=_s.get("project", "PC"),                              key="jproject")
+    connect_btn  = st.button("🔗 Connect", use_container_width=True)
     st.markdown("---")
 
 # ── Jira data loader ──────────────────────────────────────────────────────────
@@ -187,6 +189,12 @@ def load_jira_data(url, email, token, project):
     return df
 
 # ── Load ──────────────────────────────────────────────────────────────────────
+if not JIRA_TOKEN:
+    st.info("Enter your Jira API Token in the sidebar and click **Connect**."); st.stop()
+
+if connect_btn:
+    load_jira_data.clear()
+
 try:
     raw = load_jira_data(JIRA_URL, JIRA_EMAIL, JIRA_TOKEN, JIRA_PROJECT)
 except Exception as e:
