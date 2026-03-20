@@ -124,7 +124,7 @@ with st.sidebar:
 
 # ── Jira data loader ──────────────────────────────────────────────────────────
 @st.cache_data(ttl=300, show_spinner="Fetching issues from Jira…")
-def load_jira_data(url, email, token, project, _bust=0):
+def load_jira_data(url, email, token, project, cache_bust=0):
     auth    = (email, token)
     headers = {"Accept": "application/json"}
     fields  = "summary,status,priority,assignee,reporter,issuetype,created"
@@ -195,10 +195,9 @@ if not JIRA_TOKEN:
 if connect_btn:
     st.session_state["cache_bust"] = st.session_state.get("cache_bust", 0) + 1
 
-_bust = st.session_state.get("cache_bust", 0)
-
 try:
-    raw = load_jira_data(JIRA_URL, JIRA_EMAIL, JIRA_TOKEN, JIRA_PROJECT, _bust=_bust)
+    raw = load_jira_data(JIRA_URL, JIRA_EMAIL, JIRA_TOKEN, JIRA_PROJECT,
+                         cache_bust=st.session_state.get("cache_bust", 0))
 except Exception as e:
     st.error(f"Jira Error: {e}"); st.stop()
 
