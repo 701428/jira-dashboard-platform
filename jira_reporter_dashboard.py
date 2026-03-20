@@ -124,7 +124,7 @@ with st.sidebar:
 
 # ── Jira data loader ──────────────────────────────────────────────────────────
 @st.cache_data(ttl=300, show_spinner="Fetching issues from Jira…")
-def load_jira_data(url, email, token, project):
+def load_jira_data(url, email, token, project, _bust=0):
     auth    = (email, token)
     headers = {"Accept": "application/json"}
     fields  = "summary,status,priority,assignee,reporter,issuetype,created"
@@ -193,10 +193,12 @@ if not JIRA_TOKEN:
     st.info("Enter your Jira API Token in the sidebar and click **Connect**."); st.stop()
 
 if connect_btn:
-    load_jira_data.clear()
+    st.session_state["cache_bust"] = st.session_state.get("cache_bust", 0) + 1
+
+_bust = st.session_state.get("cache_bust", 0)
 
 try:
-    raw = load_jira_data(JIRA_URL, JIRA_EMAIL, JIRA_TOKEN, JIRA_PROJECT)
+    raw = load_jira_data(JIRA_URL, JIRA_EMAIL, JIRA_TOKEN, JIRA_PROJECT, _bust=_bust)
 except Exception as e:
     st.error(f"Jira Error: {e}"); st.stop()
 
@@ -220,7 +222,8 @@ else:
     dr = None
 st.sidebar.markdown("---")
 if st.sidebar.button("🔄 Refresh"):
-    st.cache_data.clear(); st.rerun()
+    st.session_state["cache_bust"] = st.session_state.get("cache_bust", 0) + 1
+    st.rerun()
 
 df = raw.copy()
 if sel_rep:  df = df[df["reporter"].isin(sel_rep)]
