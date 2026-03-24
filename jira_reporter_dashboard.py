@@ -5,6 +5,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime
+from pdf_report import generate_pdf_report
 
 st.set_page_config(page_title="Reporter Dashboard (Jira)", page_icon="👤",
                    layout="wide", initial_sidebar_state="expanded")
@@ -283,6 +284,26 @@ bugs_all = int(df['issue_type'].eq('Bug').sum())
 impr_all = int(df['issue_type'].eq('Improvement').sum())
 open_all = int(df['status'].eq('NEW').sum())
 high_all = int(df['priority'].isin(['Highest','High']).sum())
+
+# ── PDF Export (sidebar) ──────────────────────────────────────────────────────
+fetched_at = raw.attrs.get('fetched_at', datetime.now().strftime("%d %b %Y, %H:%M:%S"))
+st.sidebar.markdown("---")
+st.sidebar.markdown("## 📄 Export Report")
+if st.sidebar.button("⬇️ Generate PDF Report", use_container_width=True):
+    with st.sidebar:
+        with st.spinner("Building PDF…"):
+            pdf_buf = generate_pdf_report(
+                df, rep_df, total_all, resolved_all, res_rate,
+                bugs_all, impr_all, open_all, n_rep,
+                fetched_at, JIRA_PROJECT.upper()
+            )
+    st.sidebar.download_button(
+        label="📥 Download Report PDF",
+        data=pdf_buf,
+        file_name=f"jira_reporter_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+        mime="application/pdf",
+        use_container_width=True,
+    )
 
 st.markdown(f"""
 <div class="kpi-row">
