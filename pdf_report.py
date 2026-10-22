@@ -456,7 +456,7 @@ def generate_pdf_report(df, rep_df, total_all, resolved_all, res_rate,
         story.append(HRFlowable(width=pw, thickness=1.5, color=C_BLUE, spaceAfter=8))
         section_num += 1
 
-        open_issues = df[~df["status"].apply(_is_resolved)]
+        open_issues = df[df["status"].apply(_is_active_open)]
         if not open_issues.empty:
             age_grp = open_issues.groupby("age_bucket").size().reset_index(name="Count")
             age_grp["age_bucket"] = age_grp["age_bucket"].astype(str)
