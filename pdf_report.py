@@ -27,20 +27,21 @@ def mini_bar_drawing(pct, color_hex, width=100, height=10):
 
 
 # ── Case-insensitive field matchers (mirrors jira_reporter_dashboard.py) ──────
-_RESOLVED_ST  = {"done", "accepted", "closed", "resolved", "fixed"}
-_OPEN_ST      = {"new", "open", "to do", "todo"}
-_BLOCKED_ST   = {"blocked"}
-_RETEST_ST    = {"re-test fail", "retest fail"}
-_BUG_T        = {"bug", "defect"}
-_IMPROVEMENT_T= {"improvement", "enhancement", "new feature"}
-_HIGH_P       = {"highest", "high", "critical", "blocker"}
+_RESOLVED_ST   = {"done", "accepted", "closed", "resolved", "fixed"}
+_INACTIVE_ST   = {"rejected", "reject", "won't fix", "wont fix", "duplicate", "cancelled", "canceled"}
+_BLOCKED_ST    = {"blocked"}
+_RETEST_ST     = {"re-test fail", "retest fail"}
+_BUG_T         = {"bug", "defect"}
+_IMPROVEMENT_T = {"improvement", "enhancement", "new feature", "feature", "feature request"}
+_HIGH_P        = {"highest", "high", "critical", "blocker"}
 
-def _is_resolved(s):    return str(s).strip().lower() in _RESOLVED_ST
-def _is_open(s):        return str(s).strip().lower() in _OPEN_ST
-def _is_blocked(s):     return str(s).strip().lower() in _BLOCKED_ST
-def _is_bug(t):         return str(t).strip().lower() in _BUG_T
-def _is_improvement(t): return str(t).strip().lower() in _IMPROVEMENT_T
-def _is_high_prio(p):   return str(p).strip().lower() in _HIGH_P
+def _is_resolved(s):      return str(s).strip().lower() in _RESOLVED_ST
+def _is_inactive(s):      return str(s).strip().lower() in _INACTIVE_ST
+def _is_blocked(s):       return str(s).strip().lower() in _BLOCKED_ST
+def _is_active_open(s):   return not _is_resolved(s) and not _is_inactive(s) and not _is_blocked(s)
+def _is_bug(t):           return str(t).strip().lower() in _BUG_T
+def _is_improvement(t):   return str(t).strip().lower() in _IMPROVEMENT_T
+def _is_high_prio(p):     return str(p).strip().lower() in _HIGH_P
 
 
 def generate_pdf_report(df, rep_df, total_all, resolved_all, res_rate,
@@ -74,10 +75,15 @@ def generate_pdf_report(df, rep_df, total_all, resolved_all, res_rate,
         "Medium":  "#eab308", "Low":  "#22c55e", "Lowest": "#3b82f6",
     }
     STATUS_COLORS = {
-        "NEW": "#3b82f6", "To Do": "#8b5cf6", "In Progress": "#f97316",
-        "Assigned To Developer": "#06b6d4", "IN TESTING": "#eab308",
-        "RE-TEST FAIL": "#ef4444", "ACCEPTED": "#10b981", "Done": "#22c55e",
-        "Rejected": "#94a3b8", "BLOCKED": "#dc2626",
+        "NEW": "#3b82f6", "Open": "#3b82f6", "To Do": "#8b5cf6",
+        "In Progress": "#f97316", "In Dev": "#f97316", "In Development": "#f97316",
+        "Assigned To Developer": "#06b6d4", "Targeted": "#06b6d4",
+        "IN TESTING": "#eab308", "In Testing": "#eab308", "QA": "#eab308",
+        "RE-TEST FAIL": "#ef4444", "Re-Test Fail": "#ef4444", "Retest Fail": "#ef4444",
+        "ACCEPTED": "#10b981", "Done": "#22c55e", "Closed": "#22c55e",
+        "Resolved": "#22c55e", "Fixed": "#22c55e",
+        "Rejected": "#94a3b8", "Reject": "#94a3b8", "Won't Fix": "#94a3b8", "Duplicate": "#94a3b8",
+        "BLOCKED": "#dc2626", "Blocked": "#dc2626",
     }
     AGE_COLORS = {
         "0–7 days": "#22c55e", "8–30 days": "#84cc16",
@@ -226,7 +232,7 @@ def generate_pdf_report(df, rep_df, total_all, resolved_all, res_rate,
             pim = int(pf["issue_type"].apply(_is_improvement).sum()) if pt else 0
             pr  = int(pf["status"].apply(_is_resolved).sum()) if pt else 0
             prr = round(pr/pt*100, 1) if pt else 0
-            po  = int(pf["status"].apply(_is_open).sum()) if pt else 0
+            po  = int(pf["status"].apply(_is_active_open).sum()) if pt else 0
             pbl = int(pf["status"].apply(_is_blocked).sum()) if pt else 0
             prd = pf["resolution_days"].dropna() if "resolution_days" in pf.columns else pd.Series([], dtype=float)
             prd_avg = f"{prd.mean():.1f}" if len(prd) > 0 else "—"
