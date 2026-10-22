@@ -235,7 +235,11 @@ def load_project_data(url, email, token, project):
     if df.empty:
         return df
     df["issue_type"]      = df["issue_type"].str.strip()
-    df                    = df[df["reporter"].notna() & (df["reporter"].str.strip() != "")]
+    df["status"]          = df["status"].str.strip()
+    df["priority"]        = df["priority"].str.strip()
+    df["reporter"]        = df["reporter"].str.strip()
+    df["assignee"]        = df["assignee"].str.strip()
+    df                    = df[df["reporter"].notna() & (df["reporter"] != "")]
     df["created_dt"]      = pd.to_datetime(df["created"], errors="coerce", utc=True)
     df["created_dt"]      = df["created_dt"].dt.tz_convert("Asia/Kolkata").dt.tz_localize(None)
     df["resolved_dt"]     = pd.to_datetime(df["resolutiondate"], errors="coerce", utc=True)
@@ -325,8 +329,12 @@ def apply_filters(df):
     if sel_type: df = df[df["issue_type"].isin(sel_type)]
     if sel_stat: df = df[df["status"].isin(sel_stat)]
     if sel_prio: df = df[df["priority"].isin(sel_prio)]
-    if dr and len(dr) == 2:
-        df = df[(df["created_dt"].dt.date >= dr[0]) & (df["created_dt"].dt.date <= dr[1])]
+    if dr:
+        dates = dr if isinstance(dr, (list, tuple)) else (dr,)
+        if len(dates) == 2:
+            df = df[(df["created_dt"].dt.date >= dates[0]) & (df["created_dt"].dt.date <= dates[1])]
+        elif len(dates) == 1:
+            df = df[df["created_dt"].dt.date >= dates[0]]
     return df
 
 df = apply_filters(combined_df.copy())
@@ -1074,7 +1082,7 @@ def render_dashboard(data, scope_label):
                      "Summary":   st.column_config.TextColumn(width="large"),
                      "Status":    st.column_config.TextColumn(width="medium"),
                      "Priority":  st.column_config.TextColumn(width="small"),
-                     "Age (days)":st.column_config.NumberColumn(width="small"),
+                     "Age (days)":st.column_config.NumberColumn(width="small", format="%d"),
                  })
     st.caption(f"Showing {len(tbl):,} of {len(data):,} issues")
     st.markdown('</div>', unsafe_allow_html=True)
