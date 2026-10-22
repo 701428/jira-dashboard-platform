@@ -96,7 +96,24 @@ AV = ["#2563eb","#7c3aed","#db2777","#ea580c","#059669",
 SC = {"NEW":"#3b82f6","To Do":"#8b5cf6","In Progress":"#f97316",
       "Assigned To Developer":"#06b6d4","IN TESTING":"#eab308",
       "RE-TEST FAIL":"#ef4444","ACCEPTED":"#10b981","Done":"#22c55e",
-      "Rejected":"#94a3b8","BLOCKED":"#dc2626"}
+      "Closed":"#22c55e","Rejected":"#94a3b8","BLOCKED":"#dc2626","Blocked":"#dc2626"}
+
+# ── Configurable field matchers (case-insensitive) ────────────────────────────
+RESOLVED_STATUSES  = {"done", "accepted", "closed", "resolved", "fixed"}
+OPEN_STATUSES      = {"new", "open", "to do", "todo"}
+BLOCKED_STATUSES   = {"blocked"}
+RETEST_FAIL_STATUS = {"re-test fail", "retest fail"}
+BUG_TYPES          = {"bug", "defect"}
+IMPROVEMENT_TYPES  = {"improvement", "enhancement", "new feature"}
+HIGH_PRIORITIES    = {"highest", "high", "critical", "blocker"}
+
+def is_resolved(s):   return str(s).strip().lower() in RESOLVED_STATUSES
+def is_open(s):       return str(s).strip().lower() in OPEN_STATUSES
+def is_blocked(s):    return str(s).strip().lower() in BLOCKED_STATUSES
+def is_retest(s):     return str(s).strip().lower() in RETEST_FAIL_STATUS
+def is_bug(t):        return str(t).strip().lower() in BUG_TYPES
+def is_improvement(t):return str(t).strip().lower() in IMPROVEMENT_TYPES
+def is_high_prio(p):  return str(p).strip().lower() in HIGH_PRIORITIES
 PC_COL = {"Highest":"#ef4444","High":"#f97316","Medium":"#eab308","Low":"#22c55e","Lowest":"#3b82f6"}
 TC = {"Bug":"#ef4444","Improvement":"#3b82f6","Task":"#8b5cf6","Epic":"#f97316",
       "Story":"#22c55e","New Feature":"#06b6d4","Sub-task":"#eab308","Initiative":"#ec4899"}
@@ -264,6 +281,24 @@ if combined_df["created_dt"].notna().any():
 else:
     dr = None
 st.sidebar.markdown("---")
+with st.sidebar.expander("🔬 Data Inspector", expanded=False):
+    st.markdown("**Actual Issue Types in data:**")
+    if not combined_df.empty:
+        type_counts = combined_df["issue_type"].value_counts()
+        for t, c in type_counts.items():
+            st.markdown(f"- `{t}`: {c}")
+    st.markdown("**Actual Statuses in data:**")
+    if not combined_df.empty:
+        stat_counts = combined_df["status"].value_counts()
+        for s, c in stat_counts.items():
+            st.markdown(f"- `{s}`: {c}")
+    st.markdown("**Actual Priorities in data:**")
+    if not combined_df.empty:
+        prio_counts = combined_df["priority"].value_counts()
+        for p, c in prio_counts.items():
+            st.markdown(f"- `{p}`: {c}")
+
+st.sidebar.markdown("---")
 if st.sidebar.button("🔄 Refresh"):
     st.session_state["do_refresh"] = True
     st.rerun()
@@ -287,13 +322,13 @@ def agg_reporters(data):
     rep = (
         data.groupby("reporter").agg(
             total      =("issue_key","count"),
-            bugs       =("issue_type", lambda x: (x=="Bug").sum()),
-            improv     =("issue_type", lambda x: (x=="Improvement").sum()),
-            resolved   =("status",     lambda x: x.isin(["Done","ACCEPTED"]).sum()),
-            new_open   =("status",     lambda x: (x=="NEW").sum()),
-            retest_fail=("status",     lambda x: (x=="RE-TEST FAIL").sum()),
-            blocked    =("status",     lambda x: (x=="BLOCKED").sum()),
-            high_prio  =("priority",   lambda x: x.isin(["Highest","High"]).sum()),
+            bugs       =("issue_type", lambda x: x.apply(is_bug).sum()),
+            improv     =("issue_type", lambda x: x.apply(is_improvement).sum()),
+            resolved   =("status",     lambda x: x.apply(is_resolved).sum()),
+            new_open   =("status",     lambda x: x.apply(is_open).sum()),
+            retest_fail=("status",     lambda x: x.apply(is_retest).sum()),
+            blocked    =("status",     lambda x: x.apply(is_blocked).sum()),
+            high_prio  =("priority",   lambda x: x.apply(is_high_prio).sum()),
             avg_age    =("age_days",   "mean"),
             avg_res_days=("resolution_days", lambda x: x.dropna().mean() if x.notna().any() else float("nan")),
         ).reset_index().sort_values("total", ascending=False)
@@ -308,12 +343,12 @@ rep_order = rep_df["reporter"].tolist() if not rep_df.empty else []
 bar_h     = max(420, n_rep * 48 + 100)
 
 total_all    = len(df)
-resolved_all = int(df["status"].isin(["Done","ACCEPTED"]).sum())
+resolved_all = int(df["status"].apply(is_resolved).sum())
 res_rate     = round(resolved_all / total_all * 100, 1) if total_all else 0
-bugs_all     = int(df["issue_type"].eq("Bug").sum())
-impr_all     = int(df["issue_type"].eq("Improvement").sum())
-open_all     = int(df["status"].eq("NEW").sum())
-blocked_all  = int(df["status"].eq("BLOCKED").sum())
+bugs_all     = int(df["issue_type"].apply(is_bug).sum())
+impr_all     = int(df["issue_type"].apply(is_improvement).sum())
+open_all     = int(df["status"].apply(is_open).sum())
+blocked_all  = int(df["status"].apply(is_blocked).sum())
 avg_age      = round(df["age_days"].mean(), 1) if total_all else 0
 avg_res_d    = df["resolution_days"].dropna()
 avg_res_days = round(avg_res_d.mean(), 1) if len(avg_res_d) > 0 else None
@@ -419,12 +454,12 @@ if len(PROJECT_KEYS) > 1:
     for i, (proj, col) in enumerate(zip(PROJECT_KEYS, proj_cols)):
         pf = filtered_frames.get(proj, pd.DataFrame())
         pt  = len(pf)
-        pb  = int(pf["issue_type"].eq("Bug").sum()) if pt else 0
-        pim = int(pf["issue_type"].eq("Improvement").sum()) if pt else 0
-        pr  = int(pf["status"].isin(["Done","ACCEPTED"]).sum()) if pt else 0
+        pb  = int(pf["issue_type"].apply(is_bug).sum()) if pt else 0
+        pim = int(pf["issue_type"].apply(is_improvement).sum()) if pt else 0
+        pr  = int(pf["status"].apply(is_resolved).sum()) if pt else 0
         prr = round(pr/pt*100, 1) if pt else 0
-        po  = int(pf["status"].eq("NEW").sum()) if pt else 0
-        pbl = int(pf["status"].eq("BLOCKED").sum()) if pt else 0
+        po  = int(pf["status"].apply(is_open).sum()) if pt else 0
+        pbl = int(pf["status"].apply(is_blocked).sum()) if pt else 0
         prd = pf["resolution_days"].dropna()
         prd_avg = round(prd.mean(), 1) if len(prd) > 0 else None
         pcolor = PROJ_COLORS[i % len(PROJ_COLORS)]
@@ -463,11 +498,11 @@ if len(PROJECT_KEYS) > 1:
             continue
         proj_cmp.append({
             "Project": proj,
-            "Bugs":        int(pf["issue_type"].eq("Bug").sum()),
-            "Improvements":int(pf["issue_type"].eq("Improvement").sum()),
-            "Resolved":    int(pf["status"].isin(["Done","ACCEPTED"]).sum()),
-            "Open":        int(pf["status"].eq("NEW").sum()),
-            "Blocked":     int(pf["status"].eq("BLOCKED").sum()),
+            "Bugs":        int(pf["issue_type"].apply(is_bug).sum()),
+            "Improvements":int(pf["issue_type"].apply(is_improvement).sum()),
+            "Resolved":    int(pf["status"].apply(is_resolved).sum()),
+            "Open":        int(pf["status"].apply(is_open).sum()),
+            "Blocked":     int(pf["status"].apply(is_blocked).sum()),
         })
     if proj_cmp:
         cmp_df = pd.DataFrame(proj_cmp)
@@ -500,7 +535,7 @@ def render_dashboard(data, scope_label):
     r_order  = r_df["reporter"].tolist()
     b_h      = max(420, n_r * 48 + 100)
     t_all    = len(data)
-    res_all  = int(data["status"].isin(["Done","ACCEPTED"]).sum())
+    res_all  = int(data["status"].apply(is_resolved).sum())
     rr       = round(res_all / t_all * 100, 1) if t_all else 0
 
     if r_df.empty:
@@ -688,7 +723,7 @@ def render_dashboard(data, scope_label):
                 st.markdown("</div>", unsafe_allow_html=True)
 
     with t3:
-        focus = data[data["issue_type"].isin(["Bug","Improvement"])]
+        focus = data[data["issue_type"].apply(lambda x: is_bug(x) or is_improvement(x))]
         if not focus.empty:
             piv  = focus.groupby(["reporter","issue_type","status"]).size().reset_index(name="Count")
             piv2 = piv.pivot_table(index=["reporter","issue_type"], columns="status",
@@ -748,7 +783,7 @@ def render_dashboard(data, scope_label):
     with col_age:
         st.markdown('<div class="wcard">', unsafe_allow_html=True)
         st.markdown('<p class="stitle">📅 Issue Age Buckets (Open Issues)</p>', unsafe_allow_html=True)
-        open_issues = data[~data["status"].isin(["Done","ACCEPTED","Rejected"])]
+        open_issues = data[~data["status"].apply(is_resolved)]
         if not open_issues.empty:
             age_grp = open_issues.groupby("age_bucket").size().reset_index(name="Count")
             age_grp["age_bucket"] = age_grp["age_bucket"].astype(str)
