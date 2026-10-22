@@ -284,11 +284,32 @@ def generate_pdf_report(df, rep_df, total_all, resolved_all, res_rate,
             Paragraph(str(int(r["blocked"])),     sRed if r["blocked"]>0 else sCenter),
             Paragraph(str(int(r["new_open"])),    sOrange if r["new_open"]>0 else sCenter),
         ])
+    # Grand total row
+    gt_res_pct = round(rep_df["resolved"].sum() / rep_df["total"].sum() * 100, 1) if rep_df["total"].sum() else 0
+    lb_rows.append([
+        Paragraph("<b>GRAND TOTAL</b>", PS("gt", fontSize=9, textColor=C_WHITE, fontName="Helvetica-Bold", leading=13)),
+        Paragraph(f"<b>{int(rep_df['total'].sum())}</b>",    PS("gtv", fontSize=9, textColor=C_WHITE, fontName="Helvetica-Bold", leading=13, alignment=TA_CENTER)),
+        Paragraph(f"<b>{int(rep_df['bugs'].sum())}</b>",     PS("gtb", fontSize=9, textColor=C_WHITE, fontName="Helvetica-Bold", leading=13, alignment=TA_CENTER)),
+        Paragraph(f"<b>{int(rep_df['improv'].sum())}</b>",   PS("gti", fontSize=9, textColor=C_WHITE, fontName="Helvetica-Bold", leading=13, alignment=TA_CENTER)),
+        Paragraph(f"<b>{int(rep_df['resolved'].sum())}</b>", PS("gtr", fontSize=9, textColor=C_WHITE, fontName="Helvetica-Bold", leading=13, alignment=TA_CENTER)),
+        Paragraph(f"<b>{gt_res_pct}%</b>",                  PS("gtrp", fontSize=9, textColor=C_WHITE, fontName="Helvetica-Bold", leading=13, alignment=TA_CENTER)),
+        Paragraph("—",  PS("gta",  fontSize=9, textColor=C_WHITE, fontName="Helvetica", leading=13, alignment=TA_CENTER)),
+        Paragraph(f"<b>{int(rep_df['high_prio'].sum())}</b>",   PS("gth", fontSize=9, textColor=C_WHITE, fontName="Helvetica-Bold", leading=13, alignment=TA_CENTER)),
+        Paragraph(f"<b>{int(rep_df['retest_fail'].sum())}</b>", PS("gtrf", fontSize=9, textColor=C_WHITE, fontName="Helvetica-Bold", leading=13, alignment=TA_CENTER)),
+        Paragraph(f"<b>{int(rep_df['blocked'].sum())}</b>",     PS("gtbl", fontSize=9, textColor=C_WHITE, fontName="Helvetica-Bold", leading=13, alignment=TA_CENTER)),
+        Paragraph(f"<b>{int(rep_df['new_open'].sum())}</b>",    PS("gto", fontSize=9, textColor=C_WHITE, fontName="Helvetica-Bold", leading=13, alignment=TA_CENTER)),
+    ])
 
     cw = [pw*0.17, pw*0.06, pw*0.06, pw*0.10, pw*0.08, pw*0.06,
           pw*0.08, pw*0.08, pw*0.09, pw*0.08, pw*0.08]
     lb_tbl = Table(lb_rows, colWidths=cw, repeatRows=1)
     lb_tbl.setStyle(hdr_style())
+    lb_tbl.setStyle(TableStyle([
+        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#1e3a8a")),
+        ("TEXTCOLOR",  (0, -1), (-1, -1), C_WHITE),
+        ("FONTNAME",   (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("LINEABOVE",  (0, -1), (-1, -1), 1.5, C_BLUE),
+    ]))
     story.append(lb_tbl)
     story.append(PageBreak())
 
