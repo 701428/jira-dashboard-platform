@@ -241,8 +241,8 @@ def load_project_data(url, email, token, project):
     df["resolved_dt"]     = pd.to_datetime(df["resolutiondate"], errors="coerce", utc=True)
     df["resolved_dt"]     = df["resolved_dt"].dt.tz_convert("Asia/Kolkata").dt.tz_localize(None)
     now                   = datetime.now()
-    df["age_days"]        = (now - df["created_dt"]).dt.days
-    df["resolution_days"] = (df["resolved_dt"] - df["created_dt"]).dt.days
+    df["age_days"]        = (now - df["created_dt"]).dt.total_seconds() / 86400
+    df["resolution_days"] = (df["resolved_dt"] - df["created_dt"]).dt.total_seconds() / 86400
     df["month_period"]    = df["created_dt"].dt.to_period("M")
     df["week_period"]     = df["created_dt"].dt.to_period("W")
     df["age_bucket"]      = pd.cut(
@@ -803,7 +803,7 @@ def render_dashboard(data, scope_label):
     with col_age:
         st.markdown('<div class="wcard">', unsafe_allow_html=True)
         st.markdown('<p class="stitle">📅 Issue Age Buckets (Open Issues)</p>', unsafe_allow_html=True)
-        open_issues = data[~data["status"].apply(is_resolved)]
+        open_issues = data[data["status"].apply(is_active_open)]
         if not open_issues.empty:
             age_grp = open_issues.groupby("age_bucket").size().reset_index(name="Count")
             age_grp["age_bucket"] = age_grp["age_bucket"].astype(str)
