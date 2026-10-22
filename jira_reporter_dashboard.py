@@ -559,6 +559,9 @@ def render_dashboard(data, scope_label):
         st.warning("No reporter data.")
         return
 
+    # unique key prefix so repeated render_dashboard calls don't clash
+    _k = scope_label.replace(" ", "_").replace("/", "_")
+
     # ── Smart Insights ────────────────────────────────────────────
     insights = []
     top_reporter = r_df.iloc[0]["reporter"] if len(r_df) else None
@@ -699,7 +702,7 @@ def render_dashboard(data, scope_label):
         fig.update_layout(margin=dict(t=50, b=90, l=30, r=20))
         fig.update_yaxes(range=[0, max_y * 1.25])
         fig.update_xaxes(tickangle=-20, tickfont=dict(size=11, color="#1e293b"))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key=f"chart_{_k}_0")
 
     with t2:
         c_bug, c_imp = st.columns(2)
@@ -755,7 +758,7 @@ def render_dashboard(data, scope_label):
             fig.update_layout(margin=dict(t=20, b=90, l=200, r=20))
             fig.update_xaxes(tickangle=-35, tickfont=dict(size=11, color="#1e293b"), side="bottom")
             fig.update_yaxes(tickfont=dict(size=11, color="#1e293b"))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key=f"chart_{_k}_1")
         else:
             st.info("No Bug/Improvement data to display.")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -775,7 +778,7 @@ def render_dashboard(data, scope_label):
         fig.update_layout(**B(b_h), xaxis_title="Issues", yaxis_title=None, legend=LEG_H)
         fig.update_layout(margin=dict(t=60, b=40, l=160, r=20))
         fig.update_yaxes(autorange="reversed", tickfont=dict(size=11, color="#1e293b"))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key=f"chart_{_k}_2")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_prio:
@@ -790,7 +793,7 @@ def render_dashboard(data, scope_label):
         fig.update_layout(**B(b_h), xaxis_title="Issues", yaxis_title=None, legend=LEG_H)
         fig.update_layout(margin=dict(t=60, b=40, l=160, r=20))
         fig.update_yaxes(autorange="reversed", tickfont=dict(size=11, color="#1e293b"))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key=f"chart_{_k}_3")
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ════════════════════════════════════════════════════════════════
@@ -815,7 +818,7 @@ def render_dashboard(data, scope_label):
             ))
             fig.update_layout(**B(300), xaxis_title=None, yaxis_title="Open Issues", showlegend=False)
             fig.update_layout(margin=dict(t=30, b=30, l=50, r=20))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key=f"chart_{_k}_4")
         else:
             st.info("No open issues.")
         st.markdown('</div>', unsafe_allow_html=True)
@@ -844,7 +847,7 @@ def render_dashboard(data, scope_label):
             fig.update_layout(margin=dict(t=20, b=30, l=155, r=60))
             fig.update_xaxes(range=[0, max_rt * 1.25])
             fig.update_yaxes(tickfont=dict(size=11, color="#1e293b"))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key=f"chart_{_k}_5")
         else:
             st.info("No resolved issues with resolution dates.")
         st.markdown('</div>', unsafe_allow_html=True)
@@ -874,7 +877,7 @@ def render_dashboard(data, scope_label):
             fig.update_layout(**B(300), xaxis_title=None, yaxis_title="Issues", showlegend=False)
             fig.update_layout(margin=dict(t=30, b=40, l=50, r=60))
             fig.update_xaxes(tickangle=-30, tickfont=dict(size=10, color="#1e293b"))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key=f"chart_{_k}_6")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col_trend:
@@ -893,7 +896,7 @@ def render_dashboard(data, scope_label):
             fig.update_layout(**B(300), xaxis_title=None, yaxis_title="Issues", legend=LEG_H)
             fig.update_layout(margin=dict(t=55, b=50, l=50, r=20))
             fig.update_xaxes(tickangle=-25, tickfont=dict(size=10, color="#1e293b"))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key=f"chart_{_k}_7")
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ════════════════════════════════════════════════════════════════
@@ -918,7 +921,7 @@ def render_dashboard(data, scope_label):
     fig.update_layout(margin=dict(t=20, b=40, l=175, r=90))
     fig.update_xaxes(range=[0, 125], ticksuffix="%", tickfont=dict(size=11, color="#475569"))
     fig.update_yaxes(tickfont=dict(size=12, color="#1e293b"))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key=f"chart_{_k}_8")
     st.markdown('</div>', unsafe_allow_html=True)
 
     # ════════════════════════════════════════════════════════════════
@@ -993,7 +996,7 @@ def render_dashboard(data, scope_label):
                               font=dict(size=16, color=TXT))],
         )
         st.markdown("**Status Breakdown**")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key=f"chart_{_k}_9")
 
     with sp2:
         pc2 = rdf_s["priority"].value_counts().reset_index()
@@ -1013,7 +1016,7 @@ def render_dashboard(data, scope_label):
         fig.update_layout(margin=dict(t=30, b=30, l=40, r=20))
         fig.update_yaxes(range=[0, mx*1.3])
         st.markdown("**Priority Breakdown**")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key=f"chart_{_k}_10")
 
     with sp3:
         # Monthly trend for selected reporter
@@ -1031,7 +1034,7 @@ def render_dashboard(data, scope_label):
         fig.update_layout(margin=dict(t=30, b=50, l=40, r=20))
         fig.update_xaxes(tickangle=-30, tickfont=dict(size=9, color="#1e293b"))
         st.markdown("**Monthly Activity**")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key=f"chart_{_k}_11")
 
     st.markdown('</div>', unsafe_allow_html=True)
 
