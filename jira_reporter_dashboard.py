@@ -318,6 +318,27 @@ avg_age      = round(df["age_days"].mean(), 1) if total_all else 0
 avg_res_d    = df["resolution_days"].dropna()
 avg_res_days = round(avg_res_d.mean(), 1) if len(avg_res_d) > 0 else None
 
+# ── PDF Export (sidebar) ──────────────────────────────────────────────────────
+st.sidebar.markdown("---")
+st.sidebar.markdown("## 📄 Export Report")
+if st.sidebar.button("⬇️ Generate PDF Report", use_container_width=True):
+    from pdf_report import generate_pdf_report
+    with st.sidebar:
+        with st.spinner("Building PDF…"):
+            pdf_buf = generate_pdf_report(
+                df, rep_df, total_all, resolved_all, res_rate,
+                bugs_all, impr_all, open_all, n_rep,
+                fetched_at, ", ".join(PROJECT_KEYS),
+                filtered_frames=filtered_frames,
+            )
+    st.sidebar.download_button(
+        label="📥 Download Report PDF",
+        data=pdf_buf,
+        file_name=f"jira_reporter_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+        mime="application/pdf",
+        use_container_width=True,
+    )
+
 # ════════════════════════════════════════════════════════════════
 # BANNER
 # ════════════════════════════════════════════════════════════════
