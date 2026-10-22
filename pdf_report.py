@@ -26,6 +26,23 @@ def mini_bar_drawing(pct, color_hex, width=100, height=10):
     return d
 
 
+# ── Case-insensitive field matchers (mirrors jira_reporter_dashboard.py) ──────
+_RESOLVED_ST  = {"done", "accepted", "closed", "resolved", "fixed"}
+_OPEN_ST      = {"new", "open", "to do", "todo"}
+_BLOCKED_ST   = {"blocked"}
+_RETEST_ST    = {"re-test fail", "retest fail"}
+_BUG_T        = {"bug", "defect"}
+_IMPROVEMENT_T= {"improvement", "enhancement", "new feature"}
+_HIGH_P       = {"highest", "high", "critical", "blocker"}
+
+def _is_resolved(s):    return str(s).strip().lower() in _RESOLVED_ST
+def _is_open(s):        return str(s).strip().lower() in _OPEN_ST
+def _is_blocked(s):     return str(s).strip().lower() in _BLOCKED_ST
+def _is_bug(t):         return str(t).strip().lower() in _BUG_T
+def _is_improvement(t): return str(t).strip().lower() in _IMPROVEMENT_T
+def _is_high_prio(p):   return str(p).strip().lower() in _HIGH_P
+
+
 def generate_pdf_report(df, rep_df, total_all, resolved_all, res_rate,
                          bugs_all, impr_all, open_all, n_rep,
                          fetched_at, project_keys,
@@ -144,7 +161,7 @@ def generate_pdf_report(df, rep_df, total_all, resolved_all, res_rate,
     # ────────────────────────────────────────────────────────
     # SECTION 1 — EXECUTIVE SUMMARY KPIs
     # ────────────────────────────────────────────────────────
-    blocked_all  = int(df["status"].eq("BLOCKED").sum())
+    blocked_all  = int(df["status"].apply(_is_blocked).sum())
     avg_res_s    = df["resolution_days"].dropna() if "resolution_days" in df.columns else pd.Series([], dtype=float)
     avg_res_days = round(avg_res_s.mean(), 1) if len(avg_res_s) > 0 else None
     avg_age      = round(df["age_days"].mean(), 1) if "age_days" in df.columns and len(df) > 0 else None
@@ -205,12 +222,12 @@ def generate_pdf_report(df, rep_df, total_all, resolved_all, res_rate,
         for i, proj in enumerate(proj_list):
             pf  = filtered_frames[proj]
             pt  = len(pf)
-            pb  = int(pf["issue_type"].eq("Bug").sum()) if pt else 0
-            pim = int(pf["issue_type"].eq("Improvement").sum()) if pt else 0
-            pr  = int(pf["status"].isin(["Done","ACCEPTED"]).sum()) if pt else 0
+            pb  = int(pf["issue_type"].apply(_is_bug).sum()) if pt else 0
+            pim = int(pf["issue_type"].apply(_is_improvement).sum()) if pt else 0
+            pr  = int(pf["status"].apply(_is_resolved).sum()) if pt else 0
             prr = round(pr/pt*100, 1) if pt else 0
-            po  = int(pf["status"].eq("NEW").sum()) if pt else 0
-            pbl = int(pf["status"].eq("BLOCKED").sum()) if pt else 0
+            po  = int(pf["status"].apply(_is_open).sum()) if pt else 0
+            pbl = int(pf["status"].apply(_is_blocked).sum()) if pt else 0
             prd = pf["resolution_days"].dropna() if "resolution_days" in pf.columns else pd.Series([], dtype=float)
             prd_avg = f"{prd.mean():.1f}" if len(prd) > 0 else "—"
             pc_hex  = PROJ_COLORS[i % len(PROJ_COLORS)]
@@ -412,7 +429,7 @@ def generate_pdf_report(df, rep_df, total_all, resolved_all, res_rate,
         story.append(HRFlowable(width=pw, thickness=1.5, color=C_BLUE, spaceAfter=8))
         section_num += 1
 
-        open_issues = df[~df["status"].isin(["Done","ACCEPTED","Rejected"])]
+        open_issues = df[~df["status"].apply(_is_resolved)]
         if not open_issues.empty:
             age_grp = open_issues.groupby("age_bucket").size().reset_index(name="Count")
             age_grp["age_bucket"] = age_grp["age_bucket"].astype(str)
