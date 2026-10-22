@@ -155,7 +155,8 @@ def initials(n):
     return (p[0][0]+(p[-1][0] if len(p)>1 else "")).upper()
 
 REPORTER_IDS = (
-    "reporter in (712020:a685ca99-6022-4256-93fd-ec3883cb5dad,"
+    "reporter in ("
+    "712020:a685ca99-6022-4256-93fd-ec3883cb5dad,"
     "712020:316426a6-cf5c-41ef-9616-d3afb6c93c13,"
     "712020:6fba3e29-74d4-4157-8e00-d8f0e6d9cac1,"
     "712020:77f75184-11d8-42af-8ecf-96ca5c1b6e0f,"
@@ -165,7 +166,13 @@ REPORTER_IDS = (
     "712020:dd54aff3-0ac7-46e7-a396-fba3d71cc6ef,"
     "61a5fa5bf24150007202bf14,"
     "712020:2dfcbecb-7ec3-4e3a-b254-cce35dfa1566,"
-    "712020:4d18b64a-cfa6-4195-80d9-75679183fc4f)"
+    "712020:4d18b64a-cfa6-4195-80d9-75679183fc4f,"
+    "712020:e2507d3c-48cc-42fa-99ab-716c8242ec2a,"
+    "712020:c07e40e2-f9f1-428a-a84f-f2e2a86e57a8,"
+    "712020:1a36b20a-3e85-4c7b-a127-b22c2de52097,"
+    "712020:4ee197b4-3fa8-4f09-ac96-c7db3eba7ee2,"
+    "712020:3cbb2dcb-74f9-4251-a72b-e62f72c31b78"
+    ")"
 )
 
 # ── Jira config (sidebar) ─────────────────────────────────────────────────────
