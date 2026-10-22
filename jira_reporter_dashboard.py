@@ -93,27 +93,39 @@ p,span,div,label,li,h1,h2,h3,h4,h5{color:#0f172a;}
 # ── Colours ───────────────────────────────────────────────────────────────────
 AV = ["#2563eb","#7c3aed","#db2777","#ea580c","#059669",
       "#0891b2","#d97706","#9333ea","#dc2626","#0284c7"]
-SC = {"NEW":"#3b82f6","To Do":"#8b5cf6","In Progress":"#f97316",
-      "Assigned To Developer":"#06b6d4","IN TESTING":"#eab308",
-      "RE-TEST FAIL":"#ef4444","ACCEPTED":"#10b981","Done":"#22c55e",
-      "Closed":"#22c55e","Rejected":"#94a3b8","BLOCKED":"#dc2626","Blocked":"#dc2626"}
+SC = {
+    "NEW":"#3b82f6","Open":"#3b82f6","To Do":"#8b5cf6",
+    "In Progress":"#f97316","In Dev":"#f97316","In Development":"#f97316",
+    "Assigned To Developer":"#06b6d4","Targeted":"#06b6d4",
+    "IN TESTING":"#eab308","In Testing":"#eab308","QA":"#eab308",
+    "RE-TEST FAIL":"#ef4444","Re-Test Fail":"#ef4444","Retest Fail":"#ef4444",
+    "ACCEPTED":"#10b981","Done":"#22c55e","Closed":"#22c55e",
+    "Resolved":"#22c55e","Fixed":"#22c55e",
+    "Rejected":"#94a3b8","Reject":"#94a3b8","Won't Fix":"#94a3b8","Duplicate":"#94a3b8",
+    "BLOCKED":"#dc2626","Blocked":"#dc2626",
+}
 
 # ── Configurable field matchers (case-insensitive) ────────────────────────────
 RESOLVED_STATUSES  = {"done", "accepted", "closed", "resolved", "fixed"}
-OPEN_STATUSES      = {"new", "open", "to do", "todo"}
+INACTIVE_STATUSES  = {"rejected", "reject", "won't fix", "wont fix", "duplicate", "cancelled", "canceled"}
 BLOCKED_STATUSES   = {"blocked"}
 RETEST_FAIL_STATUS = {"re-test fail", "retest fail"}
 BUG_TYPES          = {"bug", "defect"}
-IMPROVEMENT_TYPES  = {"improvement", "enhancement", "new feature"}
+IMPROVEMENT_TYPES  = {"improvement", "enhancement", "new feature", "feature", "feature request"}
 HIGH_PRIORITIES    = {"highest", "high", "critical", "blocker"}
 
-def is_resolved(s):   return str(s).strip().lower() in RESOLVED_STATUSES
-def is_open(s):       return str(s).strip().lower() in OPEN_STATUSES
-def is_blocked(s):    return str(s).strip().lower() in BLOCKED_STATUSES
-def is_retest(s):     return str(s).strip().lower() in RETEST_FAIL_STATUS
-def is_bug(t):        return str(t).strip().lower() in BUG_TYPES
-def is_improvement(t):return str(t).strip().lower() in IMPROVEMENT_TYPES
-def is_high_prio(p):  return str(p).strip().lower() in HIGH_PRIORITIES
+def is_resolved(s):    return str(s).strip().lower() in RESOLVED_STATUSES
+def is_inactive(s):    return str(s).strip().lower() in INACTIVE_STATUSES
+def is_closed_out(s):  return is_resolved(s) or is_inactive(s)
+def is_active_open(s): return not is_closed_out(s) and not is_blocked(s)  # all in-progress/open
+def is_blocked(s):     return str(s).strip().lower() in BLOCKED_STATUSES
+def is_retest(s):      return str(s).strip().lower() in RETEST_FAIL_STATUS
+def is_bug(t):         return str(t).strip().lower() in BUG_TYPES
+def is_improvement(t): return str(t).strip().lower() in IMPROVEMENT_TYPES
+def is_high_prio(p):   return str(p).strip().lower() in HIGH_PRIORITIES
+
+# kept for age-bucket open filter (all non-resolved)
+def is_open(s):        return is_active_open(s)
 PC_COL = {"Highest":"#ef4444","High":"#f97316","Medium":"#eab308","Low":"#22c55e","Lowest":"#3b82f6"}
 TC = {"Bug":"#ef4444","Improvement":"#3b82f6","Task":"#8b5cf6","Epic":"#f97316",
       "Story":"#22c55e","New Feature":"#06b6d4","Sub-task":"#eab308","Initiative":"#ec4899"}
@@ -184,7 +196,9 @@ def load_project_data(url, email, token, project):
     fields  = "summary,status,priority,assignee,reporter,issuetype,created,resolutiondate"
     issues  = []
     next_token = None
+    page = 0
     while True:
+        page += 1
         payload = {
             "jql": f"project={project} AND {REPORTER_IDS} ORDER BY created DESC",
             "maxResults": 100,
@@ -213,9 +227,9 @@ def load_project_data(url, email, token, project):
                 "created":         f.get("created", ""),
                 "resolutiondate":  f.get("resolutiondate", None),
             })
-        if data.get("isLast", True) or not data.get("nextPageToken"):
+        next_token = data.get("nextPageToken")
+        if not next_token:
             break
-        next_token = data["nextPageToken"]
 
     df = pd.DataFrame(issues)
     if df.empty:
@@ -241,12 +255,15 @@ def load_project_data(url, email, token, project):
 def load_all_projects(url, email, token, projects):
     frames = {}
     for p in projects:
-        with st.spinner(f"Fetching {p}…"):
-            try:
-                frames[p] = load_project_data(url, email, token, p)
-            except Exception as e:
-                st.error(f"Error loading {p}: {e}")
-                frames[p] = pd.DataFrame()
+        ph = st.empty()
+        ph.info(f"⏳ Fetching **{p}** (paginating all issues)…")
+        try:
+            frames[p] = load_project_data(url, email, token, p)
+            n = len(frames[p])
+            ph.success(f"✅ **{p}** — {n:,} issues loaded")
+        except Exception as e:
+            ph.error(f"Error loading {p}: {e}")
+            frames[p] = pd.DataFrame()
     return frames
 
 # ── Load ──────────────────────────────────────────────────────────────────────
@@ -325,7 +342,7 @@ def agg_reporters(data):
             bugs       =("issue_type", lambda x: x.apply(is_bug).sum()),
             improv     =("issue_type", lambda x: x.apply(is_improvement).sum()),
             resolved   =("status",     lambda x: x.apply(is_resolved).sum()),
-            new_open   =("status",     lambda x: x.apply(is_open).sum()),
+            new_open   =("status",     lambda x: x.apply(is_active_open).sum()),
             retest_fail=("status",     lambda x: x.apply(is_retest).sum()),
             blocked    =("status",     lambda x: x.apply(is_blocked).sum()),
             high_prio  =("priority",   lambda x: x.apply(is_high_prio).sum()),
@@ -347,7 +364,7 @@ resolved_all = int(df["status"].apply(is_resolved).sum())
 res_rate     = round(resolved_all / total_all * 100, 1) if total_all else 0
 bugs_all     = int(df["issue_type"].apply(is_bug).sum())
 impr_all     = int(df["issue_type"].apply(is_improvement).sum())
-open_all     = int(df["status"].apply(is_open).sum())
+open_all     = int(df["status"].apply(is_active_open).sum())
 blocked_all  = int(df["status"].apply(is_blocked).sum())
 avg_age      = round(df["age_days"].mean(), 1) if total_all else 0
 avg_res_d    = df["resolution_days"].dropna()
@@ -425,7 +442,7 @@ st.markdown(f"""
   <div class="kpi">
     <div class="kpi-icon">🔴</div>
     <div class="kpi-val">{open_all:,}</div>
-    <div class="kpi-lbl">Still Open (NEW)</div>
+    <div class="kpi-lbl">Active / Open</div>
     <div class="kpi-note">{round(open_all/total_all*100,1) if total_all else 0}% unresolved</div>
   </div>
   <div class="kpi">
@@ -458,7 +475,7 @@ if len(PROJECT_KEYS) > 1:
         pim = int(pf["issue_type"].apply(is_improvement).sum()) if pt else 0
         pr  = int(pf["status"].apply(is_resolved).sum()) if pt else 0
         prr = round(pr/pt*100, 1) if pt else 0
-        po  = int(pf["status"].apply(is_open).sum()) if pt else 0
+        po  = int(pf["status"].apply(is_active_open).sum()) if pt else 0
         pbl = int(pf["status"].apply(is_blocked).sum()) if pt else 0
         prd = pf["resolution_days"].dropna()
         prd_avg = round(prd.mean(), 1) if len(prd) > 0 else None
@@ -501,7 +518,7 @@ if len(PROJECT_KEYS) > 1:
             "Bugs":        int(pf["issue_type"].apply(is_bug).sum()),
             "Improvements":int(pf["issue_type"].apply(is_improvement).sum()),
             "Resolved":    int(pf["status"].apply(is_resolved).sum()),
-            "Open":        int(pf["status"].apply(is_open).sum()),
+            "Open":        int(pf["status"].apply(is_active_open).sum()),
             "Blocked":     int(pf["status"].apply(is_blocked).sum()),
         })
     if proj_cmp:
